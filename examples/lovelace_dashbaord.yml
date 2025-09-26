@@ -1,0 +1,28 @@
+title: Heizkurve Dashboard
+path: heizkurve
+views:
+  - type: sections
+    max_columns: 6
+    sections:
+      - type: grid
+        column_span: 6
+        cards:
+          - type: custom:heizkurve-dynamic-card
+            column_span: 6
+            responsive: true
+            aspect_ratio: 0.55
+            max_height_vh: 600
+            min_height_px: 320
+            lock_endpoints: true
+            vertical: false
+            grid_options:
+              columns: 24
+              rows: 1
+            title: Heizkurve (4 Segmente)
+            entities:
+              min_outdoor: number.samsung_ehssentinel_infsv2011
+              max_outdoor: number.samsung_ehssentinel_infsv2012
+              vl_min: number.samsung_ehssentinel_infsv2021
+              vl_max: number.samsung_ehssentinel_infsv2022
+              current_outdoor: sensor.samsung_ehssentinel_outdoorouttemp
+              segments_json: input_text.heizkurve_segments

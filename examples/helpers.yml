@@ -1,0 +1,21 @@
+input_text:
+  heizkurve_segments:
+    name: Heizkurve Segmente
+    icon: mdi:chart-line
+    max: 255
+    mode: text
+    initial: '{"v":1,"points":[{"t":0,"off":0},{"t":1,"off":0}]}'
+
+input_number:
+  heizkurve_delta:
+    name: Heizkurve Δ (0.5°C)
+    icon: mdi:triangle-wave
+    min: -5
+    max: 5
+    step: 0.5
+    mode: box
+
+input_boolean:
+  heizkurve_debug:
+    name: Heizkurve Debug
+    icon: mdi:bug

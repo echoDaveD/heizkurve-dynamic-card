@@ -1,0 +1,11 @@
+# Node / tooling (falls du bundlest)
+node_modules/
+*.map
+
+# Editor
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
