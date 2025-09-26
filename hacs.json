@@ -1,7 +1,6 @@
 {
-  "name": "Heizkurve Dynamic",
+  "name": "Heizkurve Dynamic Card",
+  "filename": "heizkurve-dynamic-card.js",
   "render_readme": true,
-  "filename": "frontend/heizkurve-dynamic-card.js",
-  "country": "DE",
   "zip_release": true
 }

@@ -45,7 +45,7 @@ Es ist aktuell von den Entitäten und begrenzungen der helferentitäten auf Sams
 ## Installation (Card via HACS)
 
 1. **HACS → Benutzerdefinierte Repositories → „Frontend“**
-   - URL deines Repos hinzufügen: `https://github.com/echoDaveD/heizkurve-dynamic-card`
+   - URL des Repos mit Typ *Dashboard* hinzufügen: `https://github.com/echoDaveD/heizkurve-dynamic-card`
    - Danach unter **HACS → Frontend** die Card „**Heizkurve Dynamic**“ installieren.
 2. **Ressource** wird automatisch hinzugefügt (Pfad ähnlich):
    ```
