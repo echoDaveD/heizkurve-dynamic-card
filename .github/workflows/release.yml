@@ -1,10 +1,10 @@
-name: Auto Tag + Build HACS Release (ZIP) + Release Notes
+name: Auto Tag + Release (JS asset + optional ZIP)
 
 on:
   workflow_dispatch: {}
 
 permissions:
-  contents: write   # nötig zum Taggen & Release erstellen
+  contents: write
 
 jobs:
   release:
@@ -13,37 +13,34 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # alle Tags/Commits holen
+          fetch-depth: 0
+
+      - name: Setup Git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Get last tag
         id: lasttag
         run: |
-          set -e
-          if git describe --tags --abbrev=0 > /dev/null 2>&1; then
-            LAST_TAG=$(git describe --tags --abbrev=0)
+          if git describe --tags --abbrev=0 >/dev/null 2>&1; then
+            echo "last_tag=$(git describe --tags --abbrev=0)" >> $GITHUB_OUTPUT
           else
-            LAST_TAG="v0.0.0"
+            echo "last_tag=v0.0.0" >> $GITHUB_OUTPUT
           fi
-          echo "last_tag=$LAST_TAG" >> $GITHUB_OUTPUT
-          echo "Last tag: $LAST_TAG"
+          echo "Last tag: ${{ steps.lasttag.outputs.last_tag }}"
 
       - name: Collect commits since last tag
         id: commits
         run: |
-          set -e
-          LAST_TAG="${{ steps.lasttag.outputs.last_tag }}"
-          if [ "$LAST_TAG" = "v0.0.0" ]; then
-            RANGE=""
-          else
-            RANGE="${LAST_TAG}..HEAD"
-          fi
-          # Liste für Release Notes
+          LAST="${{ steps.lasttag.outputs.last_tag }}"
+          RANGE=""
+          if [ "$LAST" != "v0.0.0" ]; then RANGE="${LAST}..HEAD"; fi
           LOG=$(git log --pretty=format:"- %s (%h) by %an" $RANGE || true)
           echo "log<<EOF" >> $GITHUB_OUTPUT
           echo "${LOG}" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-          # Heuristik für SemVer-Bump (Conventional Commits)
           COMMITS=$(git log --pretty=format:"%s%n%b" $RANGE || true)
           BUMP="patch"
           if echo "$COMMITS" | grep -Eiq "BREAKING CHANGE|!:"; then
@@ -59,35 +56,22 @@ jobs:
       - name: Compute next tag
         id: nexttag
         run: |
-          set -e
           LAST="${{ steps.lasttag.outputs.last_tag }}"
           BUMP="${{ steps.commits.outputs.bump }}"
-
-          # Strip leading v
           CORE="${LAST#v}"
           IFS='.' read -r MA MI PA <<< "$CORE"
           MA=${MA:-0}; MI=${MI:-0}; PA=${PA:-0}
-
           case "$BUMP" in
             major) MA=$((MA+1)); MI=0; PA=0 ;;
             minor) MI=$((MI+1)); PA=0 ;;
             patch) PA=$((PA+1)) ;;
           esac
-
-          NEXT="v${MA}.${MI}.${PA}"
-          echo "next_tag=$NEXT" >> $GITHUB_OUTPUT
-          echo "Next tag: $NEXT"
-
-      - name: Setup Git identity
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          echo "next_tag=v${MA}.${MI}.${PA}" >> $GITHUB_OUTPUT
+          echo "Next tag: v${MA}.${MI}.${PA}"
 
       - name: Create/Push tag
         run: |
-          set -e
           TAG="${{ steps.nexttag.outputs.next_tag }}"
-          # Wenn Tag schon existiert, nicht erneut anlegen
           if git rev-parse "$TAG" >/dev/null 2>&1; then
             echo "Tag $TAG exists already."
           else
@@ -95,46 +79,33 @@ jobs:
             git push origin "$TAG"
           fi
 
-      - name: Prepare clean bundle (zip root contains only JS)
+      - name: Prepare assets
         run: |
           set -euo pipefail
-          JS_SRC="frontend/heizkurve-dynamic-card.js"  # ggf. anpassen
+          JS_SRC="frontend/heizkurve-dynamic-card.js"    # ggf. anpassen
           JS_DST="heizkurve-dynamic-card.js"
+          test -f "$JS_SRC" || (echo "❌ Datei $JS_SRC nicht gefunden" && exit 1)
+          cp "$JS_SRC" "$JS_DST"
+          mkdir -p bundle && cp "$JS_SRC" "bundle/$JS_DST" && (cd bundle && zip -9 "../heizkurve-dynamic-card-${{ steps.nexttag.outputs.next_tag }}.zip" * )
 
-          if [ ! -f "$JS_SRC" ]; then
-            echo "❌ Datei $JS_SRC nicht gefunden"; exit 1
-          fi
-
-          mkdir -p bundle
-          cp "$JS_SRC" "bundle/$JS_DST"
-          ls -lah bundle
-
-      - name: Create ZIP
-        id: zip
-        run: |
-          set -e
-          ZIP="heizkurve-dynamic-card-${{ steps.nexttag.outputs.next_tag }}.zip"
-          cd bundle
-          zip -9 "../$ZIP" *
-          cd -
-          echo "zip_name=$ZIP" >> $GITHUB_OUTPUT
-          ls -lah "$ZIP"
-
-      - name: Create GitHub Release
+      - name: Create GitHub Release (upload JS + ZIP)
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.nexttag.outputs.next_tag }}
           name: ${{ steps.nexttag.outputs.next_tag }}
           draft: false
           prerelease: false
-          files: ${{ steps.zip.outputs.zip_name }}
+          files: |
+            heizkurve-dynamic-card.js
+            heizkurve-dynamic-card-${{ steps.nexttag.outputs.next_tag }}.zip
           body: |
             ## Heizkurve Dynamic Card – ${{ steps.nexttag.outputs.next_tag }}
 
             **Änderungen seit ${{ steps.lasttag.outputs.last_tag }}:**
             ${{ steps.commits.outputs.log }}
 
-            _Dieses Release enthält ein ZIP, das nur die Card-Datei im Root hat
-            (perfekt für HACS mit `zip_release: true`)._
+            _Assets:_
+            - `heizkurve-dynamic-card.js` (für HACS)
+            - `heizkurve-dynamic-card-${{ steps.nexttag.outputs.next_tag }}.zip` (optional)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
